@@ -208,6 +208,15 @@ function readSWFTags(buff, swf) {
         tag.depth = buff.readUIntLE(16);
         tag.tabIndex = buff.readUIntLE(16);
         break;
+      case SWFTags.DefineBitsJPEG3:
+        tag.characterId = buff.readUIntLE(16);
+        var alphaDataOffset = buff.readUIntLE(32);
+        tag.imageData = buff.buffer.slice(buff.pointer, buff.pointer + alphaDataOffset);
+        buff.pointer += alphaDataOffset;
+        var restLength = tagHeader.length - 6 - alphaDataOffset;
+        tag.bitmapAlphaData = buff.buffer.slice(buff.pointer, buff.pointer + restLength);
+        buff.pointer += restLength;
+        break;
       default:
         tag.data = buff.buffer.slice(buff.pointer, buff.pointer + tagHeader.length);
         buff.pointer += tagHeader.length;
