@@ -208,6 +208,10 @@ function readSWFTags(buff, swf) {
         tag.depth = buff.readUIntLE(16);
         tag.tabIndex = buff.readUIntLE(16);
         break;
+      case SWFTags.JPEGTables:
+        tag.jpegData = buff.buffer.slice(buff.pointer, buff.pointer + tagHeader.length);
+        buff.pointer += tagHeader.length;
+        break;
       case SWFTags.DefineBits:
         tag.characterId = buff.readUIntLE(16);
         tag.jpegData = buff.buffer.slice(buff.pointer, buff.pointer + tagHeader.length - 2);
