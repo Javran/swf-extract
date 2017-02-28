@@ -9,6 +9,7 @@
 var fs = require('fs')
   , zlib = require('zlib') 
   , lzma = require('lzma-purejs')
+  , Stream = require('stream')
   , SWFBuffer = require('./lib/swf-buffer')
   , SWFTags = require('./lib/swf-tags') 
   , SWFReader = exports;
@@ -343,7 +344,38 @@ function uncompress(swf, next) {
         return readSWFBuff(new SWFBuffer( swf ), swf, next);
         break;
       case 0x5a : // LZMA compressed 
-        uncompressed_buff = Buffer.concat([swf.slice(0, 8), lzma.decompressFile(compressed_buff)]);
+        var lzmaProperties = compressed_buff.slice(4, 9);
+        compressed_buff = compressed_buff.slice(9);
+        
+        var input_stream = new Stream();
+        input_stream.pos = 0;
+        input_stream.readByte = function() {
+          return this.pos >= compressed_buff.length ? -1 : compressed_buff[this.pos++];
+        };
+
+        var output_stream = new Stream();
+        output_stream.buffer = new Buffer(16384);
+        output_stream.pos = 0;
+        output_stream.writeByte = function(_byte) {
+          if (this.pos >= this.buffer.length) {
+            var newBuffer = new Buffer(this.buffer.length * 2);
+            this.buffer.copy(newBuffer);
+            this.buffer = newBuffer;
+          }
+          this.buffer[this.pos++] = _byte;
+        };
+        output_stream.getBuffer = function() {
+          // trim buffer
+          if (this.pos !== this.buffer.length) {
+            var newBuffer = new Buffer(this.pos);
+            this.buffer.copy(newBuffer, 0, 0, this.pos);
+            this.buffer = newBuffer;
+          }
+          return this.buffer;
+        };
+        
+        lzma.decompress(lzmaProperties, input_stream, output_stream, -1);
+        uncompressed_buff = Buffer.concat([swf.slice(0, 8), output_stream.getBuffer()]);
         
         return readSWFBuff(new SWFBuffer(uncompressed_buff), swf, next); 
         break;
