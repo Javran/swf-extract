@@ -208,6 +208,16 @@ function readSWFTags(buff, swf) {
         tag.depth = buff.readUIntLE(16);
         tag.tabIndex = buff.readUIntLE(16);
         break;
+      case SWFTags.DefineBits:
+        tag.characterId = buff.readUIntLE(16);
+        tag.jpegData = buff.buffer.slice(buff.pointer, buff.pointer + tagHeader.length - 2);
+        buff.pointer += tagHeader.length - 2;
+        break;
+      case SWFTags.DefineBitsJPEG2:
+        tag.characterId = buff.readUIntLE(16);
+        tag.imageData = buff.buffer.slice(buff.pointer, buff.pointer + tagHeader.length - 2);
+        buff.pointer += tagHeader.length - 2;
+        break;
       case SWFTags.DefineBitsJPEG3:
         tag.characterId = buff.readUIntLE(16);
         var alphaDataOffset = buff.readUIntLE(32);
@@ -215,6 +225,30 @@ function readSWFTags(buff, swf) {
         buff.pointer += alphaDataOffset;
         var restLength = tagHeader.length - 6 - alphaDataOffset;
         tag.bitmapAlphaData = buff.buffer.slice(buff.pointer, buff.pointer + restLength);
+        buff.pointer += restLength;
+        break;
+      case SWFTags.DefineBitsJPEG4:
+        tag.characterId = buff.readUIntLE(16);
+        var alphaDataOffset = buff.readUIntLE(32);
+        tag.deblockParam = buff.readUIntLE(16);
+        tag.imageData = buff.buffer.slice(buff.pointer, buff.pointer + alphaDataOffset);
+        buff.pointer += alphaDataOffset;
+        var restLength = tagHeader.length - 8 - alphaDataOffset;
+        tag.bitmapAlphaData = buff.buffer.slice(buff.pointer, buff.pointer + restLength);
+        buff.pointer += restLength;
+        break;
+      case SWFTags.DefineBitsLossless:
+      case SWFTags.DefineBitsLossless2:
+        tag.characterId = buff.readUIntLE(16);
+        tag.bitmapFormat = buff.readUInt8();
+        tag.bitmapWidth = buff.readUIntLE(16);
+        tag.bitmapHeight = buff.readUIntLE(16);
+        var restLength = tagHeader.length - 7;
+        if (tag.bitmapFormat == 3) {
+          tag.bitmapColorTableSize = buff.readUInt8();
+          restLength--;
+        }
+        tag.zlibBitmapData = buff.buffer.slice(buff.pointer, buff.pointer + restLength);
         buff.pointer += restLength;
         break;
       default:
