@@ -2,16 +2,18 @@
   
   A simple [node][nodejs] module for reading [SWF format][swf-format].
 
+  Forked from [https://github.com/rafaeldias/swf-reader](https://github.com/rafaeldias/swf-reader).
+
 ## Installation
 
 ```sh
-$ npm install swf-reader
+$ npm install @gizeta/swf-reader
 ```
 
 ## Usage
 
 ```js
-var SWFReader = require('swf-reader');
+var SWFReader = require('@gizeta/swf-reader');
 
 SWFReader.read( 'swf_path.swf', function(err, swf) {
   if ( err ) {
@@ -70,7 +72,7 @@ $ npm test
 
 ## Contributors
 
-  Author: [Rafael Leal Dias][rdleal-git]
+  Original Author: [Rafael Leal Dias][rdleal-git]
 
 ## License
 

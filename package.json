@@ -1,5 +1,5 @@
 {
-  "name": "swf-reader",
+  "name": "@gizeta/swf-reader",
   "version": "1.0.0",
   "description": "A simple node module for reading SWF format",
   "main": "index.js",
@@ -14,17 +14,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/rafaeldias/swf-reader"
+    "url": "https://github.com/Gizeta/swf-reader"
   },
   "keywords": [
     "swf",
     "flash",
     "adobe"
   ],
-  "author": "Rafael Leal Dias <rafaeldias.c@gmail.com>",
+  "author": "Gizeta <0w0@gizeta.tk>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/rafaeldias/swf-reader/issues"
+    "url": "https://github.com/Gizeta/swf-reader/issues"
   },
-  "homepage": "https://github.com/rafaeldias/swf-reader"
+  "homepage": "https://github.com/Gizeta/swf-reader"
 }
