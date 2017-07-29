@@ -13,10 +13,11 @@ import { SWFBuffer } from './lib/swf-buffer'
 
 const readSWFTags = (buff, callbacks) => {
   while (buff.pointer < buff.buffer.length) {
-    const tagHeader = buff.readTagCodeAndLength()
-    const {code,length} = tagHeader
-    setTimeout(() => callbacks.tag(code,length,buff.buffer,buff.pointer))
-    buff.incr(tagHeader.length)
+    const {code,length} = buff.readTagCodeAndLength()
+    const pos = buff.pointer
+    setTimeout(() =>
+      callbacks.tag(code,length,buff.buffer,pos))
+    buff.incr(length)
   }
   setTimeout(() => callbacks.done())
 }
@@ -144,11 +145,13 @@ const readFromBufferP = buffer => new Promise(
     readFromBuffer(buffer,{
       error: e => reject(e),
       header: swf => Object.assign(data,swf),
-      tag: (code, length, swfBuf, pos) =>
-        data.tags.push({
+      tag: (code, length, swfBuf, pos) => {
+        const tag = {
           code, length,
           rawData: swfBuf.slice(pos,pos+length),
-        }),
+        }
+        data.tags.push(tag)
+      },
       done: () => resolve(data),
     })
   })
