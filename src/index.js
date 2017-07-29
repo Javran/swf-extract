@@ -23,7 +23,7 @@ const readSWFTags = (buff, callbacks) => {
 }
 
 /**
- * Reads tags and their contents, passaing a SWF object to callback
+ * Reads tags and their contents, passing a SWF object to callback
  *
  * @param {SWFBuffer} buff
  * @param {Buffer} compressed_buff
@@ -31,7 +31,8 @@ const readSWFTags = (buff, callbacks) => {
  *
  */
 const readSWFBuff = (buff, compressedBuff, callbacks) => {
-  buff.seek(3)// start
+  // skipping magic numbers
+  buff.seek(3)
 
   const swf = {
     version: buff.readUInt8(),
@@ -46,8 +47,6 @@ const readSWFBuff = (buff, compressedBuff, callbacks) => {
   }
   setTimeout(() => callbacks.header(swf))
   readSWFTags(buff, callbacks)
-  // swf.tags = readSWFTags(buff, callbacks)
-  // return swf
 }
 
 /**
