@@ -9,8 +9,7 @@ import zlib from 'zlib'
 import lzma from 'lzma-purejs'
 import Stream from 'stream'
 
-import SWFBuffer from './lib/swf-buffer'
-import SWFTags from './lib/swf-tags'
+import { SWFBuffer } from './lib/swf-buffer'
 
 const readSWFTags = buff => {
   const tags = []
@@ -139,4 +138,5 @@ const readFromBuffer = buffer => {
   return uncompress(buffer)
 }
 
-export { readFromBuffer, SWFTags }
+export * from './lib/swf-tags'
+export { readFromBuffer }

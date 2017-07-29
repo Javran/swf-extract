@@ -1,19 +1,12 @@
-/**
- * Defines constants on exports object
- *
- * @param {String} name
- * @param {Mixed} value
- */
+const SwfTags = {}
 
-function define(name, value) {
-  Object.defineProperty(exports, name, {
+const define = (name, value) =>
+  Object.defineProperty(SwfTags, name, {
     value,
     enumerable: true,
   })
-}
 
 /* SWF Tags Type */
-
 define('End', 0)
 define('ShowFrame', 1)
 define('DefineShape', 2)
@@ -79,4 +72,5 @@ define('DefineFontName', 88)
 define('StartSound2', 89)
 define('DefineBitsJPEG4', 90)
 define('DefineFont4', 91)
-// define('TagMax' (DefineFont4 + 1)
+
+export { SwfTags }

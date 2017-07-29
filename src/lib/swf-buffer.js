@@ -80,207 +80,205 @@ function readShapeRecords(buffer) {
  * @return Instance of SWFBuffer
  */
 
-function SWFBuffer( buffer ) {
-  if ( !Buffer.isBuffer( buffer ) ) {
-    throw new Error('Invalid buffer')
+class SWFBuffer {
+  constructor(buffer) {
+    this.buffer = buffer
+    this.pointer = 0
+    this.position = 1
+    this.current = 0
+    this.length = buffer.length
   }
-  this.buffer = buffer
-  this.pointer = 0
-  this.position = 1
-  this.current = 0
-  this.length = buffer.length
-}
 
-SWFBuffer.prototype.incr = function (n) {
-  this.pointer += n
-}
-
-/**
- * Reads unsigned 16 or 32 Little Endian Bits
- * and advance pointer to next bits / 8 bytes
- *
- * @param {Number} bits
- * @return {Number} Value read from buffer
- */
-
-SWFBuffer.prototype.readUIntLE = function ( bits ) {
-  let value = 0
-  try {
-    value = this.buffer[`readUInt${bits}LE`](this.pointer)
-    this.pointer += bits / 8
-  } catch ( e ) {
-    throw e
+  incr(n) {
+    this.pointer += n
   }
-  return value
-}
 
-/**
- * Reads unsigned 8 bit from the buffer
- *
- * @return {Number} Value read from buffer
- */
+  /**
+   * Reads unsigned 16 or 32 Little Endian Bits
+   * and advance pointer to next bits / 8 bytes
+   *
+   * @param {Number} bits
+   * @return {Number} Value read from buffer
+   */
 
-SWFBuffer.prototype.readUInt8 = function () {
-  return this.buffer.readUInt8( this.pointer++ )
-}
+  readUIntLE( bits ) {
+    let value = 0
+    try {
+      value = this.buffer[`readUInt${bits}LE`](this.pointer)
+      this.pointer += bits / 8
+    } catch ( e ) {
+      throw e
+    }
+    return value
+  }
 
-/**
- * Reads 32-bit unsigned integers value encoded (1-5 bytes)
- *
- * @return {Number} 32-bit unsigned integer
- */
+  /**
+   * Reads unsigned 8 bit from the buffer
+   *
+   * @return {Number} Value read from buffer
+   */
 
-SWFBuffer.prototype.readEncodedU32 = function () {
-  let i = 5,
-    result = 0,
-    nb
+  readUInt8() {
+    return this.buffer.readUInt8( this.pointer++ )
+  }
 
-  do
+  /**
+   * Reads 32-bit unsigned integers value encoded (1-5 bytes)
+   *
+   * @return {Number} 32-bit unsigned integer
+   */
+
+  readEncodedU32() {
+    let i = 5,
+        result = 0,
+        nb
+
+    do
     result += (nb = this.nextByte())
-  while ((nb & 128) && --i)
+    while ((nb & 128) && --i)
 
-  return result
-}
+      return result
+  }
 
-/**
- * Reads an encoded data from buffer and returns a
- * string using the specified character set.
- *
- * @param {String} encoding - defaults to 'utf8'
- * @returns {String} Decoded string
- */
+  /**
+   * Reads an encoded data from buffer and returns a
+   * string using the specified character set.
+   *
+   * @param {String} encoding - defaults to 'utf8'
+   * @returns {String} Decoded string
+   */
 
-SWFBuffer.prototype.readString = function (encoding) {
-  const init = this.pointer
-  while (this.readUInt8() !== EOS);
-  return this.buffer.toString(encoding || 'utf8', init, this.pointer - 1)
-}
+  readString(encoding) {
+    const init = this.pointer
+    while (this.readUInt8() !== EOS);
+    return this.buffer.toString(encoding || 'utf8', init, this.pointer - 1)
+  }
 
-/**
- * Reads RGB value
- *
- * @return {Array} Array of RGB value
- */
+  /**
+   * Reads RGB value
+   *
+   * @return {Array} Array of RGB value
+   */
 
-SWFBuffer.prototype.readRGB = function () {
-  return [this.readUInt8(), this.readUInt8(), this.readUInt8()]
-}
+  readRGB() {
+    return [this.readUInt8(), this.readUInt8(), this.readUInt8()]
+  }
 
-/**
- * Reads RGBA value
- *
- * @return {Array} Array of RGBA value
- */
+  /**
+   * Reads RGBA value
+   *
+   * @return {Array} Array of RGBA value
+   */
 
-SWFBuffer.prototype.readRGBA = function () {
-  const rgba = this.readRGB()
-  rgba.push(this.readUInt8())
-  return rgba
-}
+  readRGBA() {
+    const rgba = this.readRGB()
+    rgba.push(this.readUInt8())
+    return rgba
+  }
 
-/**
- * Reads ShapeWithStyle structure
- * used by the DefineShape tag.
- *
- * @return ShapeWithStyle structure
- */
-SWFBuffer.prototype.readShapeWithStyle = function () {
-  return {
-    fillStyles: readStyleArray(this, readFillStyle),
-    lineStyles: readStyleArray(this, readLineStyle),
-    numFillBits: this.readBits(4),
-    numLineBits: this.readBits(4),
-    shapeRecords: readShapeRecords(this),
+  /**
+   * Reads ShapeWithStyle structure
+   * used by the DefineShape tag.
+   *
+   * @return ShapeWithStyle structure
+   */
+  readShapeWithStyle() {
+    return {
+      fillStyles: readStyleArray(this, readFillStyle),
+      lineStyles: readStyleArray(this, readLineStyle),
+      numFillBits: this.readBits(4),
+      numLineBits: this.readBits(4),
+      shapeRecords: readShapeRecords(this),
+    }
+  }
+
+  /**
+   * Reads RECORDHEADER from next tag in the buffer
+   *
+   * @return {Object} Tag code and length
+   */
+
+  readTagCodeAndLength() {
+    let n = this.readUIntLE(16),
+        tagType = n >> 6,
+        tagLength = n & RECORDHEADER_LENTH_FULL
+
+    if ( tagLength === RECORDHEADER_LENTH_FULL )
+      tagLength = this.readUIntLE(32)
+
+    return { code: tagType, length: tagLength }
+  }
+
+  /**
+   * Reads RECT format
+   *
+   * @return {Object} x, y, width and height of the RECT
+   */
+
+  readRect() {
+    this.start()
+
+    let NBits = this.readBits(5),
+        Xmin = this.readBits(NBits, true)/20,
+        Xmax = this.readBits(NBits, true)/20,
+        Ymin = this.readBits(NBits, true)/20,
+        Ymax = this.readBits(NBits, true)/20
+
+    return {
+      x: Xmin,
+      y: Ymin,
+      width: (Xmax > Xmin ? Xmax - Xmin : Xmin - Xmax),
+      height: (Ymax > Ymin ? Ymax - Ymin : Ymin - Ymax),
+    }
+  }
+
+  /**
+   * Sets internal pointer to the specified position;
+   *
+   * @param {Number} pos
+   */
+
+  seek( pos ) {
+    this.pointer = pos % this.buffer.length
+  }
+
+  /**
+   * Resets position and sets current to next Byte in buffer
+   */
+  start() {
+    this.current = this.nextByte()
+    this.position = 1
+  }
+
+  /**
+   * Gets next Byte in the buffer and Increment internal pointer
+   *
+   * @return {Number} Next byte in buffer
+   */
+
+  nextByte() {
+    return this.pointer > this.buffer.length ? null : this.buffer[this.pointer++]
+  }
+
+  /**
+   * Reads b bits from current byte in buffer
+   *
+   * @param {Number} b
+   * @return {Number} Bits read from buffer
+   */
+
+  readBits( b, signed ) {
+    let n = 0,
+        r = 0,
+        sign = signed && ++n && ((this.current >> (8-this.position++)) & 1) ? -1 : 1
+
+    while ( n++ < b ) {
+      if ( this.position > 8 ) this.start()
+
+      r = (r << 1 ) + ((this.current >> (8-this.position++)) & 1)
+    }
+    return sign * r
   }
 }
 
-/**
- * Reads RECORDHEADER from next tag in the buffer
- *
- * @return {Object} Tag code and length
- */
-
-SWFBuffer.prototype.readTagCodeAndLength = function () {
-  let n = this.readUIntLE(16),
-    tagType = n >> 6,
-    tagLength = n & RECORDHEADER_LENTH_FULL
-
-  if ( tagLength === RECORDHEADER_LENTH_FULL )
-    tagLength = this.readUIntLE(32)
-
-  return { code: tagType, length: tagLength }
-}
-
-/**
- * Reads RECT format
- *
- * @return {Object} x, y, width and height of the RECT
- */
-
-SWFBuffer.prototype.readRect = function () {
-  this.start()
-
-  let NBits = this.readBits(5),
-    Xmin = this.readBits(NBits, true)/20,
-    Xmax = this.readBits(NBits, true)/20,
-    Ymin = this.readBits(NBits, true)/20,
-    Ymax = this.readBits(NBits, true)/20
-
-  return {
-    x: Xmin,
-    y: Ymin,
-    width: (Xmax > Xmin ? Xmax - Xmin : Xmin - Xmax),
-    height: (Ymax > Ymin ? Ymax - Ymin : Ymin - Ymax),
-  }
-}
-
-/**
- * Sets internal pointer to the specified position;
- *
- * @param {Number} pos
- */
-
-SWFBuffer.prototype.seek = function ( pos ) {
-  this.pointer = pos % this.buffer.length
-}
-
-/**
- * Resets position and sets current to next Byte in buffer
- */
-SWFBuffer.prototype.start = function () {
-  this.current = this.nextByte()
-  this.position = 1
-}
-
-/**
- * Gets next Byte in the buffer and Increment internal pointer
- *
- * @return {Number} Next byte in buffer
- */
-
-SWFBuffer.prototype.nextByte = function () {
-  return this.pointer > this.buffer.length ? null : this.buffer[this.pointer++]
-}
-
-/**
- * Reads b bits from current byte in buffer
- *
- * @param {Number} b
- * @return {Number} Bits read from buffer
- */
-
-SWFBuffer.prototype.readBits = function ( b, signed ) {
-  let n = 0,
-    r = 0,
-    sign = signed && ++n && ((this.current >> (8-this.position++)) & 1) ? -1 : 1
-
-  while ( n++ < b ) {
-    if ( this.position > 8 ) this.start()
-
-    r = (r << 1 ) + ((this.current >> (8-this.position++)) & 1)
-  }
-  return sign * r
-}
-
-/* Exposes class */
-exports = module.exports = SWFBuffer
+export { SWFBuffer }
