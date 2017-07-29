@@ -1,8 +1,9 @@
 {
-  "name": "@gizeta/swf-reader",
+  "name": "swf-reader-raw",
   "version": "1.0.0",
   "description": "A simple node module for reading SWF format",
   "main": "index.js",
+  "private": true,
   "dependencies": {
     "lzma-purejs": "~0.9.3"
   },
@@ -10,21 +11,42 @@
     "test": "test"
   },
   "scripts": {
-    "test": "TEST_FILE='test/test.swf' node test/test.spec.js"
+    "test-legacy": "TEST_FILE='test/test.swf' node test/test.spec.js",
+
+    "transpile": "babel src --out-dir dist && cp package.json dist/package.json",
+    "test": "mocha --compilers js:babel-core/register --recursive",
+    "lint": "eslint 'src/**' 'test/**'",
+    "clear-dist": "rm -rf dist/",
+    "check": "npm test && npm run lint",
+    "check-and-publish": "stack ./scripts/publish.hs"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Gizeta/swf-reader"
+    "url": "https://github.com/Javran/swf-reader"
   },
   "keywords": [
     "swf",
     "flash",
     "adobe"
   ],
-  "author": "Gizeta <0w0@gizeta.tk>",
+  "author": "Javran Cheng <Javran.C@gmail.com> (https://github.com/Javran)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Gizeta/swf-reader/issues"
+    "url": "https://github.com/Javran/swf-reader-raw/issues"
   },
-  "homepage": "https://github.com/Gizeta/swf-reader"
+  "homepage": "https://github.com/Javran/swf-reader-raw",
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-eslint": "^7.2.3",
+    "babel-plugin-add-module-exports": "^0.2.1",
+    "babel-preset-es2015": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1",
+    "eslint": "^3.19.0",
+    "eslint-config-airbnb": "^15.0.2",
+    "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-jsx-a11y": "^5.1.1",
+    "eslint-plugin-react": "^7.1.0",
+    "mocha": "^3.4.2",
+    "lodash": "^4.17.4"
+  }
 }
