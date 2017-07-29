@@ -41,7 +41,7 @@ const readSWFTags = buff => {
  * @api private
  *
  */
-function readSWFBuff(buff, compressedBuff) {
+const readSWFBuff = (buff, compressedBuff) => {
   buff.seek(3)// start
 
   const swf = {
@@ -88,30 +88,39 @@ const uncompress = swf => {
     compressedBuff = compressedBuff.slice(9)
 
     const inputStream = new Stream()
-    inputStream.pos = 0
-    inputStream.readByte = function readByte() {
-      return this.pos >= compressedBuff.length ? -1 : compressedBuff[this.pos++]
+    {
+      const inpState = {pos: 0}
+      inputStream.readByte = () => {
+        if (inpState.pos < compressedBuff.length) {
+          const v = compressedBuff[inpState.pos]
+          ++inpState.pos
+          return v
+        } else {
+          return -1
+        }
+      }
     }
 
     const outputStream = new Stream()
-    outputStream.buffer = new Buffer(16384)
-    outputStream.pos = 0
-    outputStream.writeByte = function writeByte(_byte) {
-      if (this.pos >= this.buffer.length) {
-        const newBuffer = new Buffer(this.buffer.length * 2)
-        this.buffer.copy(newBuffer)
-        this.buffer = newBuffer
+    {
+      const outState = {
+        buffer: new Buffer(16384),
+        pos: 0,
       }
-      this.buffer[this.pos++] = _byte
-    }
-    outputStream.getBuffer = function getBuffer() {
-      // trim buffer
-      if (this.pos !== this.buffer.length) {
-        const newBuffer = new Buffer(this.pos)
-        this.buffer.copy(newBuffer, 0, 0, this.pos)
-        this.buffer = newBuffer
+      outputStream.writeByte = _byte => {
+        if (outState.pos >= outState.buffer.length) {
+          const curLen = outState.buffer.length
+          outState.buffer = Buffer.concat(
+            [outState.buffer, new Buffer(curLen)],curLen*2
+          )
+        }
+        outState.buffer[outState.pos] = _byte
+        ++outState.pos
       }
-      return this.buffer
+      outputStream.getBuffer = () =>
+        (outState.pos !== outState.buffer.length) ?
+          outState.buffer.slice(0,outState.pos) :
+          outState.buffer
     }
 
     lzma.decompress(lzmaProperties, inputStream, outputStream, -1)
