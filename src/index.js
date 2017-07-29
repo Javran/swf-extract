@@ -11,25 +11,14 @@ import Stream from 'stream'
 
 import { SWFBuffer } from './lib/swf-buffer'
 
-const readSWFTags = buff => {
-  const tags = []
-
+const readSWFTags = (buff, callbacks) => {
   while (buff.pointer < buff.buffer.length) {
     const tagHeader = buff.readTagCodeAndLength()
-    const tag = {
-      header: tagHeader,
-      rawData: buff.buffer.slice(buff.pointer, buff.pointer+tagHeader.length),
-    }
+    const {code,length} = tagHeader
+    setTimeout(() => callbacks.tag(code,length,buff.buffer,buff.pointer))
     buff.incr(tagHeader.length)
-    tags.push(tag)
   }
-  if (
-    tags.length === 0 ||
-    tags[tags.length-1].header.code !== 0
-  ) {
-    console.warn('End tag is not the last one in this SWF file')
-  }
-  return tags
+  setTimeout(() => callbacks.done())
 }
 
 /**
@@ -40,7 +29,7 @@ const readSWFTags = buff => {
  * @api private
  *
  */
-const readSWFBuff = (buff, compressedBuff) => {
+const readSWFBuff = (buff, compressedBuff, callbacks) => {
   buff.seek(3)// start
 
   const swf = {
@@ -54,9 +43,10 @@ const readSWFBuff = (buff, compressedBuff) => {
     frameRate: buff.readUIntLE(16)/256,
     frameCount: buff.readUIntLE(16),
   }
-
-  swf.tags = readSWFTags(buff)
-  return swf
+  setTimeout(() => callbacks.header(swf))
+  readSWFTags(buff, callbacks)
+  // swf.tags = readSWFTags(buff, callbacks)
+  // return swf
 }
 
 /**
@@ -65,24 +55,24 @@ const readSWFBuff = (buff, compressedBuff) => {
  * @param {Buffer} swf
  *
  */
-const uncompress = swf => {
-  const next = undefined
-  let compressedBuff = swf.slice(8)
-  let uncompressedBuff
-
+const uncompress = (swf, callbacks) => {
   const [swfType] = swf
   // uncompressed
   if (swfType === 0x46) {
-    return readSWFBuff(new SWFBuffer(swf), swf)
+    return readSWFBuff(new SWFBuffer(swf), swf, callbacks)
   }
   // zlib compressed
   if (swfType === 0x43) {
-    uncompressedBuff = Buffer.concat([swf.slice(0, 8), zlib.unzipSync(compressedBuff)])
-    return readSWFBuff(new SWFBuffer(uncompressedBuff), swf)
+    const compressedBuff = swf.slice(8)
+    const uncompressedBuff =
+      Buffer.concat([swf.slice(0, 8), zlib.unzipSync(compressedBuff)])
+    return readSWFBuff(new SWFBuffer(uncompressedBuff), swf, callbacks)
   }
 
   // lzma compressed
   if (swfType === 0x5a) {
+    let compressedBuff = swf.slice(8)
+
     const lzmaProperties = compressedBuff.slice(4, 9)
     compressedBuff = compressedBuff.slice(9)
 
@@ -123,20 +113,45 @@ const uncompress = swf => {
     }
 
     lzma.decompress(lzmaProperties, inputStream, outputStream, -1)
-    uncompressedBuff = Buffer.concat([swf.slice(0, 8), outputStream.getBuffer()])
+    const uncompressedBuff = Buffer.concat([swf.slice(0, 8), outputStream.getBuffer()])
 
-    return readSWFBuff(new SWFBuffer(uncompressedBuff), swf, next)
+    return readSWFBuff(new SWFBuffer(uncompressedBuff), swf, callbacks)
   }
 
-  throw new Error(`Unknown SWF compression type: ${swfType}`)
+  setTimeout(() => callbacks.error(new Error(`Unknown SWF compression type: ${swfType}`)))
 }
 
-const readFromBuffer = buffer => {
+/*
+   callbacks:
+
+   error(e)
+
+   header(swf)
+   tag(code,length,buffer,pos)
+   done()
+
+ */
+const readFromBuffer = (buffer,callbacks) => {
   if (! Buffer.isBuffer(buffer))
     throw new Error(`expecting a buffer`)
 
-  return uncompress(buffer)
+  return uncompress(buffer,callbacks)
 }
 
+const readFromBufferP = buffer => new Promise(
+  (resolve, reject) => {
+    const data = {tags: []}
+    readFromBuffer(buffer,{
+      error: e => reject(e),
+      header: swf => Object.assign(data,swf),
+      tag: (code, length, swfBuf, pos) =>
+        data.tags.push({
+          code, length,
+          rawData: swfBuf.slice(pos,pos+length),
+        }),
+      done: () => resolve(data),
+    })
+  })
+
 export * from './lib/swf-tags'
-export { readFromBuffer }
+export { readFromBuffer, readFromBufferP }
