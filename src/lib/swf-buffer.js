@@ -91,6 +91,10 @@ function SWFBuffer( buffer ) {
   this.length = buffer.length
 }
 
+SWFBuffer.prototype.incr = function (n) {
+  this.pointer += n
+}
+
 /**
  * Reads unsigned 16 or 32 Little Endian Bits
  * and advance pointer to next bits / 8 bytes
@@ -200,9 +204,6 @@ SWFBuffer.prototype.readTagCodeAndLength = function () {
   let n = this.readUIntLE(16),
     tagType = n >> 6,
     tagLength = n & RECORDHEADER_LENTH_FULL
-
-  if ( n === 0 )
-    return false
 
   if ( tagLength === RECORDHEADER_LENTH_FULL )
     tagLength = this.readUIntLE(32)
