@@ -18,23 +18,16 @@ const imageTagCodes = [
   SwfTags.DefineBitsJPEG4,
 ]
 
+
+// each extractor either returns either a value or a Promise
 const extractors = {}
 
-// each extractor either returns a value or a Promise
+// use this only for extractors that don't return a Promise
 const define = (code, extractor) => {
-  extractors[code] = (tagData, context) => {
-    const extractorResult = extractor(tagData, context)
-    if (typeof extractorResult.then === 'function') {
-      return new Promise(resolve =>
-        extractorResult.then(r =>
-          resolve({code, ...r})))
-    } else {
-      return {
-        code,
-        ...extractorResult,
-      }
-    }
-  }
+  extractors[code] = (tagData, context) => ({
+    code,
+    ...extractor(tagData, context),
+  })
 }
 
 const pngMagic = Buffer.from('0x89 0x50 0x4E 0x47 0x0D 0x0A 0x1A 0x0A'.split(' ').map(Number))
@@ -46,16 +39,6 @@ const recognizeHeader = buffer => {
     return 'gif'
   return 'jpeg'
 }
-
-const defineDummy = code =>
-  define(code, tagData => {
-    const {characterId} = tagData
-    return {
-      characterId,
-      imgType: 'TODO',
-      imgData: 'TODO',
-    }
-  })
 
 define(SwfTags.DefineBits, (tagData, context) => {
   const {characterId, jpegData} = tagData
@@ -117,7 +100,6 @@ const gDefineBitsJPEG3or4Handler = code => tagData => {
     toArray(enc).then(parts => {
       const buffers = parts
         .map(part => Buffer.isBuffer(part) ? part : Buffer.from(part))
-      // console.log(imgType)
       resolve({
         code,
         characterId,
@@ -133,8 +115,150 @@ extractors[SwfTags.DefineBitsJPEG3] =
 extractors[SwfTags.DefineBitsJPEG4] =
   gDefineBitsJPEG3or4Handler(SwfTags.DefineBitsJPEG4)
 
-defineDummy(SwfTags.DefineBitsLossless)
-defineDummy(SwfTags.DefineBitsLossless2)
+
+extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
+  (resolve,reject) => {
+    const {
+      characterId, bitmapFormat,
+      bitmapWidth, bitmapHeight,
+      bitmapColorTableSize, zlibBitmapData,
+    } = tagData
+
+    const enc = new PNGEncoder(bitmapWidth, bitmapHeight, {colorSpace: 'rgb'})
+    zlib.unzip(zlibBitmapData, (err, dataBuf) => {
+      if (err) throw reject(new Error(err))
+      const output = new Buffer(bitmapHeight * bitmapHeight * 3)
+      let index = 0
+      let ptr = 0
+      /* eslint-disable no-bitwise */
+      if (
+        // 15-bit RGB image
+        bitmapFormat === 4 ||
+        // 24-bit RGB image
+        bitmapFormat === 5
+      ) {
+        for (let y = 0; y < bitmapHeight; y++) {
+          for (let x = 0; x < bitmapWidth; x++) {
+            if (bitmapFormat === 4) {
+              // 15-bit RGB image
+              const val = dataBuf[ptr] << 8 + dataBuf[ptr + 1]
+              // pix15red
+              output[index++] = (val & 0x7c00) >> 10
+              // pix15green
+              output[index++] = (val & 0x3e0) >> 5
+              // pix15blue
+              output[index++] = val & 0x1f
+            } else {
+              // 24-bit RGB image
+              ptr++ // skip reversed byte
+              output[index++] = dataBuf[ptr++]
+              output[index++] = dataBuf[ptr++]
+              output[index++] = dataBuf[ptr++]
+            }
+          }
+          if (bitmapWidth % 2 !== 0) {
+            ptr += 2 // skip padding
+          }
+        }
+      } else if (bitmapFormat === 3) {
+        // 8-bit colormapped image
+        const colorMap = []
+        for (let i = 0; i < bitmapColorTableSize + 1; i++) {
+          colorMap.push([dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++]])
+        }
+        for (let y = 0; y < bitmapHeight; y++) {
+          for (let x = 0; x < bitmapWidth; x++) {
+            const idx = dataBuf[ptr++]
+            const color = idx < colorMap.length ? colorMap[idx] : [0, 0, 0]
+            output[index++] = color[0]
+            output[index++] = color[1]
+            output[index++] = color[2]
+          }
+          // skip padding
+          ptr += (4 - bitmapWidth % 4) % 4
+        }
+      } else {
+        reject(new Error(`unhandled bitmapFormat: ${bitmapFormat}`))
+      }
+      /* eslint-enable no-bitwise */
+      enc.end(output)
+    })
+
+    toArray(enc).then(parts => {
+      const buffers = parts
+        .map(part => Buffer.isBuffer(part) ? part : Buffer.from(part))
+      resolve({
+        code: SwfTags.DefineBitsLossless,
+        characterId,
+        imgType: 'png',
+        imgData: Buffer.concat(buffers),
+      })
+    })
+  }
+)
+
+extractors[SwfTags.DefineBitsLossless2] = tagData => {
+  const {
+    characterId, bitmapFormat,
+    bitmapWidth, bitmapHeight,
+    bitmapColorTableSize, zlibBitmapData,
+  } = tagData
+
+  return new Promise((resolve, reject) => {
+    const enc = new PNGEncoder(bitmapWidth, bitmapHeight, {colorSpace: 'rgba'})
+    zlib.unzip(zlibBitmapData, (err, dataBuf) => {
+      if (err)
+        reject(new Error(err))
+      const output = new Buffer(bitmapWidth * bitmapHeight * 4)
+      let index = 0
+      let ptr = 0
+      if (bitmapFormat === 5) {
+        // 32-bit ARGB image
+        for (let y = 0; y < bitmapHeight; y++) {
+          for (let x = 0; x < bitmapWidth; x++) {
+            const alpha = dataBuf[ptr++]
+            output[index++] = dataBuf[ptr++]
+            output[index++] = dataBuf[ptr++]
+            output[index++] = dataBuf[ptr++]
+            output[index++] = alpha
+          }
+        }
+      } else if (bitmapFormat === 3) {
+        // 8-bit colormapped image
+        const colorMap = []
+        for (let i = 0; i < bitmapColorTableSize + 1; i++) {
+          colorMap.push([dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++]])
+        }
+        for (let y = 0; y < bitmapHeight; y++) {
+          for (let x = 0; x < bitmapWidth; x++) {
+            const idx = dataBuf[ptr++]
+            const color = idx < colorMap.length ? colorMap[idx] : [0, 0, 0, 0]
+            output[index++] = color[0]
+            output[index++] = color[1]
+            output[index++] = color[2]
+            output[index++] = color[3]
+          }
+          // skip padding
+          ptr += (4 - bitmapWidth % 4) % 4
+        }
+      } else {
+        reject(new Error(`unhandled bitmapFormat: ${bitmapFormat}`))
+      }
+      enc.end(output)
+    })
+
+    toArray(enc).then(parts => {
+      const buffers = parts
+        .map(part => Buffer.isBuffer(part) ? part : Buffer.from(part))
+      resolve({
+        code: SwfTags.DefineBitsLossless2,
+        characterId,
+        imgType: 'png',
+        imgData: Buffer.concat(buffers),
+      })
+    })
+  })
+}
 
 const mkContext = rawTags => ({
   // call without argument for the memoization to work.
