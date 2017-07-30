@@ -4,4 +4,7 @@ src/
 test/
 private/
 
+scripts/
+samples/
+
 *.tgz

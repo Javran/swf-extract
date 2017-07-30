@@ -18,6 +18,12 @@ const imageTagCodes = [
   SwfTags.DefineBitsJPEG4,
 ]
 
+const coverageFlag = false
+const coverage =
+  coverageFlag ?
+    // eslint-disable-next-line no-console
+    msg => console.log(`coverage: ${msg}`) :
+    () => undefined
 
 // each extractor either returns either a value or a Promise
 const extractors = {}
@@ -33,9 +39,9 @@ const define = (code, extractor) => {
 const pngMagic = Buffer.from('0x89 0x50 0x4E 0x47 0x0D 0x0A 0x1A 0x0A'.split(' ').map(Number))
 const gifMagic = Buffer.from('0x47 0x49 0x46 0x38 0x39 0x61'.split(' ').map(Number))
 const recognizeHeader = buffer => {
-  if (pngMagic.equals(Buffer.from(buffer.buffer, 0, pngMagic.length)))
+  if (pngMagic.equals(buffer.slice(0, pngMagic.length)))
     return 'png'
-  if (gifMagic.equals(Buffer.from(buffer.buffer, 0, gifMagic.length)))
+  if (gifMagic.equals(buffer.slice(0, gifMagic.length)))
     return 'gif'
   return 'jpeg'
 }
@@ -96,7 +102,6 @@ const gDefineBitsJPEG3or4Handler = code => tagData => {
           enc.end(output)
         }))
     })
-
     toArray(enc).then(parts => {
       const buffers = parts
         .map(part => Buffer.isBuffer(part) ? part : Buffer.from(part))
@@ -115,7 +120,6 @@ extractors[SwfTags.DefineBitsJPEG3] =
 extractors[SwfTags.DefineBitsJPEG4] =
   gDefineBitsJPEG3or4Handler(SwfTags.DefineBitsJPEG4)
 
-
 extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
   (resolve,reject) => {
     const {
@@ -126,8 +130,9 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
 
     const enc = new PNGEncoder(bitmapWidth, bitmapHeight, {colorSpace: 'rgb'})
     zlib.unzip(zlibBitmapData, (err, dataBuf) => {
-      if (err) throw reject(new Error(err))
-      const output = new Buffer(bitmapHeight * bitmapHeight * 3)
+      if (err)
+        reject(new Error(err))
+      const output = new Buffer(bitmapWidth * bitmapHeight * 3)
       let index = 0
       let ptr = 0
       /* eslint-disable no-bitwise */
@@ -137,6 +142,9 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
         // 24-bit RGB image
         bitmapFormat === 5
       ) {
+        if (bitmapFormat === 4)
+          coverage(`DefineBitsLossless 15-bit`)
+
         for (let y = 0; y < bitmapHeight; y++) {
           for (let x = 0; x < bitmapWidth; x++) {
             if (bitmapFormat === 4) {
@@ -285,6 +293,7 @@ const mkContext = rawTags => ({
     if (jpegTablesTag.jpegData.length === 0) {
       return _.identity
     } else {
+      coverage('JPEGTables non-empty')
       return imgBuffer =>
         Buffer.concat([
           jpegTablesTag.jpegData,
