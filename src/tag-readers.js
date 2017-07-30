@@ -67,7 +67,7 @@ define(SwfTags.DefineBitsJPEG3, buffer => {
   }
 })
 
-define(SwfTags.DefineBitsLossless, buffer => {
+const gDefineBitsLosslessHandler = code => buffer => {
   const buff = new SWFBuffer(buffer)
   const length = buffer.length
   const characterId = buff.readUIntLE(16)
@@ -89,18 +89,20 @@ define(SwfTags.DefineBitsLossless, buffer => {
   const zlibBitmapData = buff.buffer.slice(buff.pointer, buff.pointer+restLength)
   buff.incr(restLength)
   return {
+    code,
     characterId,
     bitmapFormat,
     bitmapWidth, bitmapHeight,
     bitmapColorTableSize,
     zlibBitmapData,
   }
-})
+}
 
-define(
-  SwfTags.DefineBitsLossless2,
-  tagReaders[SwfTags.DefineBitsLossless]
-)
+tagReaders[SwfTags.DefineBitsLossless] =
+  gDefineBitsLosslessHandler(SwfTags.DefineBitsLossless)
+
+tagReaders[SwfTags.DefineBitsLossless2] =
+  gDefineBitsLosslessHandler(SwfTags.DefineBitsLossless2)
 
 define(SwfTags.DefineBitsJPEG4, buffer => {
   const buff = new SWFBuffer(buffer)
