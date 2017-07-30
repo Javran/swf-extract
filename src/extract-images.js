@@ -77,11 +77,12 @@ define(SwfTags.DefineBitsJPEG2, tagData => {
   }
 })
 
-define(SwfTags.DefineBitsJPEG3, tagData => {
+const gDefineBitsJPEG3or4Handler = code => tagData => {
   const {characterId, imageData} = tagData
   const imgType = recognizeHeader(imageData)
   if (imgType !== 'jpeg') {
     return {
+      code,
       characterId,
       imgType,
       imgData: imageData,
@@ -118,17 +119,22 @@ define(SwfTags.DefineBitsJPEG3, tagData => {
         .map(part => Buffer.isBuffer(part) ? part : Buffer.from(part))
       // console.log(imgType)
       resolve({
+        code,
         characterId,
         imgType: 'png',
         imgData: Buffer.concat(buffers),
       })
     })
   })
-})
+}
+
+extractors[SwfTags.DefineBitsJPEG3] =
+  gDefineBitsJPEG3or4Handler(SwfTags.DefineBitsJPEG3)
+extractors[SwfTags.DefineBitsJPEG4] =
+  gDefineBitsJPEG3or4Handler(SwfTags.DefineBitsJPEG4)
 
 defineDummy(SwfTags.DefineBitsLossless)
 defineDummy(SwfTags.DefineBitsLossless2)
-defineDummy(SwfTags.DefineBitsJPEG4)
 
 const mkContext = rawTags => ({
   // call without argument for the memoization to work.
