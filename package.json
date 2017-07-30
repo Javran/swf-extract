@@ -1,18 +1,21 @@
 {
-  "name": "swf-reader-raw",
+  "name": "swf-extract",
   "version": "1.0.0",
   "description": "A simple node module for reading SWF format",
   "main": "index.js",
   "private": true,
   "dependencies": {
-    "lzma-purejs": "~0.9.3"
+    "concat-frames": "^1.0.3",
+    "jpg-stream": "^1.1.1",
+    "lzma-purejs": "~0.9.3",
+    "png-stream": "^1.0.5",
+    "stream-to-array": "^2.3.0"
   },
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test-legacy": "TEST_FILE='test/test.swf' node test/test.spec.js",
-
+    "test-legacy": "TEST_FILE='test-legacy/test.swf' node test-legacy/test.spec.js",
     "transpile": "babel src --out-dir dist && cp package.json dist/package.json",
     "test": "mocha --compilers js:babel-core/register --recursive",
     "lint": "eslint 'src/**' 'test/**'",
@@ -22,7 +25,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Javran/swf-reader"
+    "url": "https://github.com/Javran/swf-extract"
   },
   "keywords": [
     "swf",
@@ -32,9 +35,9 @@
   "author": "Javran Cheng <Javran.C@gmail.com> (https://github.com/Javran)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Javran/swf-reader-raw/issues"
+    "url": "https://github.com/Javran/swf-extract/issues"
   },
-  "homepage": "https://github.com/Javran/swf-reader-raw",
+  "homepage": "https://github.com/Javran/swf-extract",
   "devDependencies": {
     "babel-cli": "^6.24.1",
     "babel-eslint": "^7.2.3",
