@@ -1,76 +1,7 @@
-
-let RECORDHEADER_LENTH_FULL = 0x3f,
-    // null-character
-  EOS = 0x00,
-  styleCountExt = 0xFF
-
-function readStyleArray(buffer, next) {
-  let styleArrayCount = buffer.readUInt8(),
-    styles = []
-
-  if (styleArrayCount === styleCountExt)
-    styleArrayCount = buffer.readUIntLE(16)
-
-  for (let i = 0; i < styleArrayCount; i++)
-    styles.push(next(buffer))
-
-  return styles
-}
-
-function readFillStyle(buffer) {
-  let type = buffer.readUInt8(),
-    fillStyle = {
-        /**
-         * 0x00 = solid
-         * 0x10 = linear gradient fill
-         * 0x12 = radial gradient fill
-         * 0x13 = focal radial gradient fill (SWF 8 or later)
-         * 0x40 = repeating bitmap fill
-         * 0x41 = clipped bitmap fill
-         * 0x42 = non-smoothed repeating bitmap
-         * 0x43 = non-smoothed clipped bitmap
-         */
-      fillStyleType: type,
-    }
-
-  switch (type) {
-    case 0x00:
-      fillStyle.color = buffer.readRGBA()
-      break
-    case 0x10, 0x12, 0x13:
-      console.log('Gradient')
-      break
-    case 0x40, 0x41, 0x42, 0x43:
-      fillStyle.bitmapId = buffer.readUIntLE(16)
-      break
-  }
-
-  return fillStyle
-}
-
-function readLineStyle(buffer) {
-  return {
-    width: buffer.readUIntLE(16)/20,
-    color: buffer.readRGBA(),
-  }
-}
-
-function readShapeRecords(buffer) {
-  let shapeRecords = [],
-    typeFlag = buffer.readBits(1),
-    shapeRecord,
-    eos
-
-  while ((eos = buffer.readBits(5))) {
-    if (typeFlag === 0) {
-      shaperecord = {
-        type: 'STYLECHANGERECORD',
-      }
-    }
-  }
-
-  return shapeRecords
-}
+/* eslint-disable no-bitwise */
+const RECORDHEADER_LENTH_FULL = 0x3f
+// null-character
+const EOS = 0x00
 
 /**
  *
@@ -126,17 +57,25 @@ class SWFBuffer {
    *
    * @return {Number} 32-bit unsigned integer
    */
-
   readEncodedU32() {
-    let i = 5,
-        result = 0,
-        nb
-
-    do
-    result += (nb = this.nextByte())
-    while ((nb & 128) && --i)
-
+    let result = this.nextByte()
+    if (!(result & 0x00000080))
       return result
+
+    result = (result & 0x0000007f) | (this.nextByte() << 7)
+    if (!(result & 0x00004000))
+      return result
+
+    result = (result & 0x00003fff) | (this.nextByte() << 14)
+    if (!(result & 0x00020000))
+      return result
+
+    result = (result & 0x001fffff) | (this.nextByte() << 21)
+    if (!(result & 0x10000000))
+      return result
+
+    result = (result & 0x0fffffff) | (this.nextByte() << 28)
+    return result
   }
 
   /**
@@ -176,31 +115,15 @@ class SWFBuffer {
   }
 
   /**
-   * Reads ShapeWithStyle structure
-   * used by the DefineShape tag.
-   *
-   * @return ShapeWithStyle structure
-   */
-  readShapeWithStyle() {
-    return {
-      fillStyles: readStyleArray(this, readFillStyle),
-      lineStyles: readStyleArray(this, readLineStyle),
-      numFillBits: this.readBits(4),
-      numLineBits: this.readBits(4),
-      shapeRecords: readShapeRecords(this),
-    }
-  }
-
-  /**
    * Reads RECORDHEADER from next tag in the buffer
    *
    * @return {Object} Tag code and length
    */
 
   readTagCodeAndLength() {
-    let n = this.readUIntLE(16),
-        tagType = n >> 6,
-        tagLength = n & RECORDHEADER_LENTH_FULL
+    const n = this.readUIntLE(16)
+    const tagType = n >> 6
+    let tagLength = n & RECORDHEADER_LENTH_FULL
 
     if ( tagLength === RECORDHEADER_LENTH_FULL )
       tagLength = this.readUIntLE(32)
@@ -217,11 +140,11 @@ class SWFBuffer {
   readRect() {
     this.start()
 
-    let NBits = this.readBits(5),
-        Xmin = this.readBits(NBits, true)/20,
-        Xmax = this.readBits(NBits, true)/20,
-        Ymin = this.readBits(NBits, true)/20,
-        Ymax = this.readBits(NBits, true)/20
+    const NBits = this.readBits(5)
+    const Xmin = this.readBits(NBits, true)/20
+    const Xmax = this.readBits(NBits, true)/20
+    const Ymin = this.readBits(NBits, true)/20
+    const Ymax = this.readBits(NBits, true)/20
 
     return {
       x: Xmin,
@@ -267,9 +190,9 @@ class SWFBuffer {
    */
 
   readBits( b, signed ) {
-    let n = 0,
-        r = 0,
-        sign = signed && ++n && ((this.current >> (8-this.position++)) & 1) ? -1 : 1
+    let n = 0
+    let r = 0
+    const sign = signed && ++n && ((this.current >> (8-this.position++)) & 1) ? -1 : 1
 
     while ( n++ < b ) {
       if ( this.position > 8 ) this.start()
