@@ -1,10 +1,18 @@
 const SwfTags = {}
 
-const define = (name, value) =>
+const codeToTagTable = new Map()
+
+const define = (name, value) => {
   Object.defineProperty(SwfTags, name, {
     value,
     enumerable: true,
   })
+  codeToTagTable.set(value, name)
+}
+const codeToTag = c =>
+  codeToTagTable.has(c) ?
+    codeToTagTable.get(c) :
+    null
 
 /* SWF Tags Type */
 define('End', 0)
@@ -73,4 +81,4 @@ define('StartSound2', 89)
 define('DefineBitsJPEG4', 90)
 define('DefineFont4', 91)
 
-export { SwfTags }
+export { SwfTags, codeToTag }

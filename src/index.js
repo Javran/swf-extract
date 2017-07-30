@@ -9,7 +9,7 @@ import zlib from 'zlib'
 import lzma from 'lzma-purejs'
 import Stream from 'stream'
 
-import { SWFBuffer } from './lib/swf-buffer'
+import { SWFBuffer } from './swf-buffer'
 
 const readSWFTags = (buff, callbacks) => {
   while (buff.pointer < buff.buffer.length) {
@@ -147,7 +147,7 @@ const readFromBufferP = buffer => new Promise(
       tag: (code, length, swfBuf, pos) => {
         const tag = {
           code, length,
-          rawData: swfBuf.slice(pos,pos+length),
+          rawData: Buffer.from(swfBuf.buffer,pos,length),
         }
         data.tags.push(tag)
       },
@@ -155,5 +155,7 @@ const readFromBufferP = buffer => new Promise(
     })
   })
 
-export * from './lib/swf-tags'
+export * from './tag-readers'
+export * from './swf-tags'
+export * from './extract-images'
 export { readFromBuffer, readFromBufferP }

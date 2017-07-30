@@ -86,7 +86,6 @@ class SWFBuffer {
     this.pointer = 0
     this.position = 1
     this.current = 0
-    this.length = buffer.length
   }
 
   incr(n) {
