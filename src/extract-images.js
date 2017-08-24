@@ -133,8 +133,6 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
       if (err)
         reject(new Error(err))
       const output = new Buffer(bitmapWidth * bitmapHeight * 3)
-      let index = 0
-      let ptr = 0
       /* eslint-disable no-bitwise */
       if (
         // 15-bit RGB image
@@ -144,7 +142,8 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
       ) {
         if (bitmapFormat === 4)
           coverage(`DefineBitsLossless 15-bit`)
-
+        let index = 0
+        let ptr = 0
         for (let y = 0; y < bitmapHeight; ++y) {
           for (let x = 0; x < bitmapWidth; ++x) {
             if (bitmapFormat === 4) {
@@ -171,6 +170,8 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
       } else if (bitmapFormat === 3) {
         // 8-bit colormapped image
         const colorMap = []
+        let index = 0
+        let ptr = 0
         for (let i = 0; i < bitmapColorTableSize + 1; ++i) {
           colorMap.push([dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++]])
         }
