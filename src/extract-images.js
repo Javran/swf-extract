@@ -150,17 +150,21 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
               // 15-bit RGB image
               const val = dataBuf[ptr] << 8 + dataBuf[ptr + 1]
               // pix15red
-              output[index++] = (val & 0x7c00) >> 10
+              output[index] = (val & 0x7c00) >> 10
               // pix15green
-              output[index++] = (val & 0x3e0) >> 5
+              output[index+1] = (val & 0x3e0) >> 5
               // pix15blue
-              output[index++] = val & 0x1f
+              output[index+2] = val & 0x1f
+              ptr += 2
+              index += 3
             } else {
               // 24-bit RGB image
-              ptr++ // skip reversed byte
-              output[index++] = dataBuf[ptr++]
-              output[index++] = dataBuf[ptr++]
-              output[index++] = dataBuf[ptr++]
+              ++ptr // skip reversed byte
+              output[index] = dataBuf[ptr]
+              output[index+1] = dataBuf[ptr+1]
+              output[index+2] = dataBuf[ptr+2]
+              ptr += 3
+              index += 3
             }
           }
           if (bitmapWidth % 2 !== 0) {
@@ -173,15 +177,18 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
         let index = 0
         let ptr = 0
         for (let i = 0; i < bitmapColorTableSize + 1; ++i) {
-          colorMap.push([dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++]])
+          colorMap.push([dataBuf[ptr], dataBuf[ptr+1], dataBuf[ptr+2]])
+          ptr += 3
         }
         for (let y = 0; y < bitmapHeight; ++y) {
           for (let x = 0; x < bitmapWidth; ++x) {
-            const idx = dataBuf[ptr++]
+            const idx = dataBuf[ptr]
+            ++ptr
             const color = idx < colorMap.length ? colorMap[idx] : [0, 0, 0]
-            output[index++] = color[0]
-            output[index++] = color[1]
-            output[index++] = color[2]
+            output[index] = color[0]
+            output[index+1] = color[1]
+            output[index+2] = color[2]
+            index += 3
           }
           // skip padding
           ptr += (4 - bitmapWidth % 4) % 4
@@ -225,27 +232,32 @@ extractors[SwfTags.DefineBitsLossless2] = tagData => {
         // 32-bit ARGB image
         for (let y = 0; y < bitmapHeight; ++y) {
           for (let x = 0; x < bitmapWidth; ++x) {
-            const alpha = dataBuf[ptr++]
-            output[index++] = dataBuf[ptr++]
-            output[index++] = dataBuf[ptr++]
-            output[index++] = dataBuf[ptr++]
-            output[index++] = alpha
+            const alpha = dataBuf[ptr]
+            output[index] = dataBuf[ptr+1]
+            output[index+1] = dataBuf[ptr+2]
+            output[index+2] = dataBuf[ptr+3]
+            output[index+3] = alpha
+            index += 4
+            ptr += 4
           }
         }
       } else if (bitmapFormat === 3) {
         // 8-bit colormapped image
         const colorMap = []
         for (let i = 0; i < bitmapColorTableSize + 1; ++i) {
-          colorMap.push([dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++]])
+          colorMap.push([dataBuf[ptr], dataBuf[ptr+1], dataBuf[ptr+2], dataBuf[ptr+3]])
+          ptr += 4
         }
         for (let y = 0; y < bitmapHeight; ++y) {
           for (let x = 0; x < bitmapWidth; ++x) {
-            const idx = dataBuf[ptr++]
+            const idx = dataBuf[ptr]
             const color = idx < colorMap.length ? colorMap[idx] : [0, 0, 0, 0]
-            output[index++] = color[0]
-            output[index++] = color[1]
-            output[index++] = color[2]
-            output[index++] = color[3]
+            output[index] = color[0]
+            output[index+1] = color[1]
+            output[index+2] = color[2]
+            output[index+3] = color[3]
+            ptr += 1
+            index += 4
           }
           // skip padding
           ptr += (4 - bitmapWidth % 4) % 4
