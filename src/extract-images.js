@@ -90,12 +90,12 @@ const gDefineBitsJPEG3or4Handler = code => tagData => {
         .pipe(new JPEGDecoder())
         .pipe(concat(([frame]) => {
           const input = frame.pixels
-          const output = new Buffer(frame.width * frame.height * 4)
+          const output = new Buffer(frame.width*frame.height*4)
           for (let i = 0; i < alphaBuf.length; ++i) {
-            output[4 * i] = input[3 * i]
-            output[4 * i + 1] = input[3 * i + 1]
-            output[4 * i + 2] = input[3 * i + 2]
-            output[4 * i + 3] = alphaBuf[i]
+            output[4*i] = input[3*i]
+            output[4*i+1] = input[3*i+1]
+            output[4*i+2] = input[3*i+2]
+            output[4*i+3] = alphaBuf[i]
           }
           enc.format.width = frame.width
           enc.format.height = frame.height
@@ -145,8 +145,8 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
         if (bitmapFormat === 4)
           coverage(`DefineBitsLossless 15-bit`)
 
-        for (let y = 0; y < bitmapHeight; y++) {
-          for (let x = 0; x < bitmapWidth; x++) {
+        for (let y = 0; y < bitmapHeight; ++y) {
+          for (let x = 0; x < bitmapWidth; ++x) {
             if (bitmapFormat === 4) {
               // 15-bit RGB image
               const val = dataBuf[ptr] << 8 + dataBuf[ptr + 1]
@@ -171,11 +171,11 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
       } else if (bitmapFormat === 3) {
         // 8-bit colormapped image
         const colorMap = []
-        for (let i = 0; i < bitmapColorTableSize + 1; i++) {
+        for (let i = 0; i < bitmapColorTableSize + 1; ++i) {
           colorMap.push([dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++]])
         }
-        for (let y = 0; y < bitmapHeight; y++) {
-          for (let x = 0; x < bitmapWidth; x++) {
+        for (let y = 0; y < bitmapHeight; ++y) {
+          for (let x = 0; x < bitmapWidth; ++x) {
             const idx = dataBuf[ptr++]
             const color = idx < colorMap.length ? colorMap[idx] : [0, 0, 0]
             output[index++] = color[0]
@@ -222,8 +222,8 @@ extractors[SwfTags.DefineBitsLossless2] = tagData => {
       let ptr = 0
       if (bitmapFormat === 5) {
         // 32-bit ARGB image
-        for (let y = 0; y < bitmapHeight; y++) {
-          for (let x = 0; x < bitmapWidth; x++) {
+        for (let y = 0; y < bitmapHeight; ++y) {
+          for (let x = 0; x < bitmapWidth; ++x) {
             const alpha = dataBuf[ptr++]
             output[index++] = dataBuf[ptr++]
             output[index++] = dataBuf[ptr++]
@@ -234,11 +234,11 @@ extractors[SwfTags.DefineBitsLossless2] = tagData => {
       } else if (bitmapFormat === 3) {
         // 8-bit colormapped image
         const colorMap = []
-        for (let i = 0; i < bitmapColorTableSize + 1; i++) {
+        for (let i = 0; i < bitmapColorTableSize + 1; ++i) {
           colorMap.push([dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++], dataBuf[ptr++]])
         }
-        for (let y = 0; y < bitmapHeight; y++) {
-          for (let x = 0; x < bitmapWidth; x++) {
+        for (let y = 0; y < bitmapHeight; ++y) {
+          for (let x = 0; x < bitmapWidth; ++x) {
             const idx = dataBuf[ptr++]
             const color = idx < colorMap.length ? colorMap[idx] : [0, 0, 0, 0]
             output[index++] = color[0]
