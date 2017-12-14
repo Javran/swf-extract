@@ -71,18 +71,56 @@ const uncompress = (swf, callbacks) => {
 
   // lzma compressed
   if (swfType === 0x5a) {
-    let compressedBuff = swf.slice(8)
+    /*
+       reference: https://helpx.adobe.com/flash-player/kb/exception-thrown-you-decompress-lzma-compressed.html
 
-    const lzmaProperties = compressedBuff.slice(4, 9)
-    compressedBuff = compressedBuff.slice(9)
+       - 0~3: ZWS + version
+       - 4~7: Uncompressed length
+       - 8~11: Compressed length bytes
+       - 12~16: LZMA properties
+       - 17~: Compressed data
+     */
+
+    const compressedBuff = swf.slice(17)
+    const lzmaProperties = swf.slice(12,16+1)
+    const uncompressedLenBuff = swf.slice(4,7+1)
+    /* eslint-disable no-bitwise */
+    const uncompressedLength =
+      uncompressedLenBuff[0] +
+      (uncompressedLenBuff[1] << 8) +
+      (uncompressedLenBuff[2] << 16) +
+      (uncompressedLenBuff[3] << 24) - 8
+    /* eslint-enable no-bitwise */
+
+    /*
+    // this part works with
+    // but it's just too slow to be useful
+    const lzma2 = require('lzma')
+
+
+    const recompressLenBuff = Buffer.alloc(8,0)
+    recompressLenBuff[0] = uncompressedLength & 0xFF
+    recompressLenBuff[1] = (uncompressedLength >> 8) & 0xFF
+    recompressLenBuff[2] = (uncompressedLength >> 16) & 0xFF
+    recompressLenBuff[3] = (uncompressedLength >> 24) & 0xFF
+    const lzmaData = Buffer.concat([lzmaProperties,recompressLenBuff,compressedBuff])
+
+
+    if (true) {
+      const uncompressedBuff = Buffer.from(lzma2.decompress(lzmaData))
+      return readSWFBuff(new SWFBuffer(uncompressedBuff), swf, callbacks)
+    }
+
+    */
 
     const inputStream = new Stream()
+
     {
-      const inpState = {pos: 0}
+      let pos = 0
       inputStream.readByte = () => {
-        if (inpState.pos < compressedBuff.length) {
-          const v = compressedBuff[inpState.pos]
-          ++inpState.pos
+        if (pos < compressedBuff.length) {
+          const v = compressedBuff[pos]
+          ++pos
           return v
         } else {
           return -1
@@ -91,30 +129,24 @@ const uncompress = (swf, callbacks) => {
     }
 
     const outputStream = new Stream()
+
     {
-      const outState = {
-        buffer: new Buffer(16384),
-        pos: 0,
-      }
+      const buffer = new Buffer(uncompressedLength)
+      let pos = 0
+
       outputStream.writeByte = _byte => {
-        if (outState.pos >= outState.buffer.length) {
-          const curLen = outState.buffer.length
-          outState.buffer = Buffer.concat(
-            [outState.buffer, new Buffer(curLen)],curLen*2
-          )
-        }
-        outState.buffer[outState.pos] = _byte
-        ++outState.pos
+        buffer[pos] = _byte
+        ++pos
       }
+
       outputStream.getBuffer = () =>
-        (outState.pos !== outState.buffer.length) ?
-          outState.buffer.slice(0,outState.pos) :
-          outState.buffer
+        (pos !== buffer.length) ?
+          buffer.slice(0,pos) :
+          buffer
     }
 
     lzma.decompress(lzmaProperties, inputStream, outputStream, -1)
     const uncompressedBuff = Buffer.concat([swf.slice(0, 8), outputStream.getBuffer()])
-
     return readSWFBuff(new SWFBuffer(uncompressedBuff), swf, callbacks)
   }
 
