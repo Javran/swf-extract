@@ -81,21 +81,39 @@ const gDefineBitsJPEG3or4Handler = code => tagData => {
   const {bitmapAlphaData} = tagData
   return new Promise((resolve, reject) => {
     const enc = new PNGEncoder(undefined, undefined, {colorSpace: 'rgba'})
-    zlib.unzip(bitmapAlphaData, (err, alphaBuf) => {
-      if (err)
-        reject(new Error(err))
+    zlib.unzip(bitmapAlphaData, (err, alphaBufPre) => {
+      // INVARIANT: alphaBuf
+      let alphaBuf = null
+      if (err) {
+        if (bitmapAlphaData.length > 0) {
+          return reject(new Error(err))
+        }
+        // leaving alphaBuf as null
+      } else {
+        // ensure alphaBuf is only assigned an non-empty Buffer
+        if (alphaBufPre.length > 0)
+          alphaBuf = alphaBufPre
+      }
       const bufferStream = new stream.PassThrough()
       bufferStream.end(imageData)
       bufferStream
         .pipe(new JPEGDecoder())
         .pipe(concat(([frame]) => {
           const input = frame.pixels
-          const output = new Buffer(frame.width*frame.height*4)
-          for (let i = 0; i < alphaBuf.length; ++i) {
+          const pCount = frame.width*frame.height
+          const output = new Buffer(pCount*4)
+          if (alphaBuf !== null && alphaBuf.length !== pCount) {
+            console.error(`expect alphaBuf to have size ${pCount} while getting ${alphaBuf.length}`)
+          }
+          const getAlphaBuf =
+            alphaBuf === null ? _ignored => 0xff :
+            i => alphaBuf[i]
+
+          for (let i = 0; i < pCount; ++i) {
             output[4*i] = input[3*i]
             output[4*i+1] = input[3*i+1]
             output[4*i+2] = input[3*i+2]
-            output[4*i+3] = alphaBuf[i]
+            output[4*i+3] = getAlphaBuf(i)
           }
           enc.format.width = frame.width
           enc.format.height = frame.height
@@ -131,7 +149,7 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
     const enc = new PNGEncoder(bitmapWidth, bitmapHeight, {colorSpace: 'rgb'})
     zlib.unzip(zlibBitmapData, (err, dataBuf) => {
       if (err)
-        reject(new Error(err))
+        return reject(new Error(err))
       const output = new Buffer(bitmapWidth * bitmapHeight * 3)
       /* eslint-disable no-bitwise */
       if (
@@ -194,7 +212,7 @@ extractors[SwfTags.DefineBitsLossless] = tagData => new Promise(
           ptr += (4 - bitmapWidth % 4) % 4
         }
       } else {
-        reject(new Error(`unhandled bitmapFormat: ${bitmapFormat}`))
+        return reject(new Error(`unhandled bitmapFormat: ${bitmapFormat}`))
       }
       /* eslint-enable no-bitwise */
       enc.end(output)
@@ -222,9 +240,11 @@ extractors[SwfTags.DefineBitsLossless2] = tagData => {
 
   return new Promise((resolve, reject) => {
     const enc = new PNGEncoder(bitmapWidth, bitmapHeight, {colorSpace: 'rgba'})
-    zlib.unzip(zlibBitmapData, (err, dataBuf) => {
-      if (err)
-        reject(new Error(err))
+
+    zlib.unzip(zlibBitmapData,(err, dataBuf) => {
+      if (err) {
+        return reject(new Error(err))
+      }
       const output = new Buffer(bitmapWidth * bitmapHeight * 4)
       let index = 0
       let ptr = 0
@@ -263,7 +283,7 @@ extractors[SwfTags.DefineBitsLossless2] = tagData => {
           ptr += (4 - bitmapWidth % 4) % 4
         }
       } else {
-        reject(new Error(`unhandled bitmapFormat: ${bitmapFormat}`))
+        return reject(new Error(`unhandled bitmapFormat: ${bitmapFormat}`))
       }
       enc.end(output)
     })
@@ -278,6 +298,8 @@ extractors[SwfTags.DefineBitsLossless2] = tagData => {
         imgData: Buffer.concat(buffers),
       })
     })
+  }).catch(e => {
+    console.error(e)
   })
 }
 
