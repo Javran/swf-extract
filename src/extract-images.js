@@ -82,9 +82,19 @@ const gDefineBitsJPEG3or4Handler = code => tagData => {
   return new Promise((resolve, reject) => {
     const enc = new PNGEncoder(undefined, undefined, {colorSpace: 'rgba'})
     zlib.unzip(bitmapAlphaData, (err, alphaBufPre) => {
-      // INVARIANT: alphaBuf
+      // INVARIANT: alphaBuf is either null or a non-empty buffer
       let alphaBuf = null
       if (err) {
+        /*
+           Due to a bug present in node zlib (https://github.com/nodejs/node/issues/17041)
+           unzipping an empty buffer can raise "unexpected end of file" error.
+           We fix this here so that our impl does not depend on the version of node
+           being used.
+
+           Theoretically every zlib.unzip call needs to be guarded, but for this package,
+           other two zlib.unzip call happens at sites that an empty uncompressed Buffer
+           does not make sense. So I think the current fix is good enough.
+         */
         if (bitmapAlphaData.length > 0) {
           return reject(new Error(err))
         }
