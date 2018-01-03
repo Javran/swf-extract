@@ -65,7 +65,17 @@ const uncompress = (swf, callbacks) => {
   if (swfType === 0x43) {
     const compressedBuff = swf.slice(8)
     const uncompressedBuff =
-      Buffer.concat([swf.slice(0, 8), zlib.unzipSync(compressedBuff)])
+      Buffer.concat([swf.slice(0, 8), zlib.unzipSync(
+        compressedBuff,
+        /*
+
+           suppress default error handling in case the file is truncated
+
+           ref: https://nodejs.org/api/zlib.html as of Jan 03, 2018
+
+         */
+        { finishFlush: zlib.constants.Z_SYNC_FLUSH }
+      )])
     return readSWFBuff(new SWFBuffer(uncompressedBuff), swf, callbacks)
   }
 
