@@ -200,4 +200,5 @@ const readFromBufferP = buffer => new Promise(
 export * from './tag-readers'
 export * from './swf-tags'
 export * from './extract-images'
+export * from './extract-sounds'
 export { readFromBuffer, readFromBufferP }

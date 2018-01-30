@@ -124,4 +124,28 @@ define(SwfTags.DefineBitsJPEG4, buffer => {
   }
 })
 
+define(SwfTags.DefineSound, buffer => {
+  const buff = new SWFBuffer(buffer)
+  const soundId = buff.readUIntLE(16)
+  // UB[4] + UB[2] + UB[1] + UB[1] = 8 bits = sizeof uint8
+  const infoBits = buff.readUInt8()
+  /* eslint-disable no-bitwise */
+  const soundFormat = (infoBits >>> 4) & 0b1111
+  const soundRate = (infoBits >>> 2) & 0b0011
+  const soundSize = (infoBits >>> 1) & 0b0001
+  const soundType = infoBits & 0b0001
+  /* eslint-enable no-bitwise */
+  const soundSampleCount = buff.readUIntLE(32)
+  const soundData = buff.buffer.slice(buff.pointer)
+  return {
+    soundId,
+    soundFormat,
+    soundRate,
+    soundSize,
+    soundType,
+    soundSampleCount,
+    soundData,
+  }
+})
+
 export { tagReaders }
